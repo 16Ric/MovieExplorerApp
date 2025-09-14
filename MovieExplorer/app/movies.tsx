@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ThemeContext } from "./theme-context"; // <-- import context
+import { ThemeContext } from "../contexts/theme-context"; // <-- import context
 
 const API_KEY = "0e6afe4a2d64477dd43060979e71b616";
 

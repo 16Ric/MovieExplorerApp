@@ -10,8 +10,9 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { ThemeContext } from "./theme-context";
+import { ThemeContext } from "../contexts/theme-context";
 import { getUserDoc, addItemToList, removeItemFromList } from "../services/userService";
+import { UserModel } from "../models/User";
 
 const API_KEY = "0e6afe4a2d64477dd43060979e71b616";
 type ListKey = "favorite" | "watched" | "watchLater";
@@ -43,11 +44,11 @@ export default function TVDetailScreen() {
       setCast(creditsData.cast?.slice(0, 10) || []);
 
       // Firestore: check if TV show is in user lists
-      const user = await getUserDoc();
+      const user: UserModel | null = await getUserDoc();
       setStatus({
-        favorite: (user?.favoriteTVShows || []).some((m: any) => m.id === data.id),
-        watched: (user?.watchedTVShows || []).some((m: any) => m.id === data.id),
-        watchLater: (user?.watchLaterTVShows || []).some((m: any) => m.id === data.id),
+        favorite: user?.favoriteList?.tv?.includes(data.id.toString()) ?? false,
+        watched: user?.watchedList?.tv?.includes(data.id.toString()) ?? false,
+        watchLater: user?.watchLaterList?.tv?.includes(data.id.toString()) ?? false,
       });
     } catch (error) {
       console.error("Error fetching TV details:", error);
@@ -61,19 +62,15 @@ export default function TVDetailScreen() {
   }, [fetchTVDetails]);
 
   const updateLists = async (tvShow: any, updates: Record<ListKey, boolean>) => {
-    const type = "tv";
+    const type: "tv" = "tv";
     const promises: Promise<void>[] = [];
 
     for (const key of ["favorite", "watched", "watchLater"] as ListKey[]) {
       const shouldAdd = updates[key];
       if (shouldAdd) {
-        promises.push(addItemToList(
-          { id: tvShow.id, name: tvShow.name, poster_path: tvShow.poster_path },
-          key,
-          type
-        ));
+        promises.push(addItemToList(tvShow.id.toString(), key, type));
       } else {
-        promises.push(removeItemFromList(tvShow.id, key, type));
+        promises.push(removeItemFromList(tvShow.id.toString(), key, type));
       }
     }
 
@@ -85,6 +82,7 @@ export default function TVDetailScreen() {
 
     let updated = { ...status, [key]: !status[key] };
 
+    // Rules: only one active list at a time
     if (key === "favorite" && updated.favorite) {
       updated.watched = true;
       updated.watchLater = false;
@@ -134,7 +132,7 @@ export default function TVDetailScreen() {
         <View style={styles.textInfo}>
           <Text style={[styles.title, { color: theme.text }]}>{tvShow.name}</Text>
           <Text style={[styles.meta, { color: theme.text }]}>
-            {tvShow.first_air_date?.slice(0, 4)} • {tvShow.episode_run_time?.[0] || "N/A"} min per ep
+            {tvShow.first_air_date?.slice(0, 4)} • {tvShow.episode_run_time?.[0] || "N/A"} min/ep
           </Text>
           <Text style={[styles.meta, { color: theme.text }]}>
             {tvShow.genres?.map((g: any) => g.name).join(", ")}

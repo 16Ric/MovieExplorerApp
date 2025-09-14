@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { ThemeContext } from "../app/theme-context";
+import { ThemeContext } from "../contexts/theme-context";
 
 const API_KEY = "0e6afe4a2d64477dd43060979e71b616";
 

@@ -10,7 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { auth } from "../firebase/firebaseConfig";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { ThemeContext } from "./theme-context"; // adjust path
+import { ThemeContext } from "../contexts/theme-context"; // adjust path
 
 export default function LoginScreen() {
   const { theme } = useContext(ThemeContext); // Use theme context

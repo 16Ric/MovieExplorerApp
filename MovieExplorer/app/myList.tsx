@@ -1,9 +1,10 @@
 import { useState, useContext, useEffect, useCallback } from "react";
 import { View, Text, FlatList, Image, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { ThemeContext } from "./theme-context";
+import { ThemeContext } from "../contexts/theme-context";
 import { auth } from "../firebase/firebaseConfig";
 import { getUserDoc, removeItemFromList } from "../services/userService";
+import { UserModel } from "../models/User";
 
 type ListKey = "favorite" | "watched" | "watchLater";
 
@@ -15,29 +16,36 @@ export default function MyListScreen() {
   const [wantToWatch, setWantToWatch] = useState<any[]>([]);
   const userId = auth.currentUser?.uid;
 
-  // Fetch all lists from Firestore
   const fetchLists = useCallback(async () => {
     if (!userId) return;
 
-    const user = await getUserDoc();
-    setFavorites([...(user?.favoriteMovies || []), ...(user?.favoriteTVShows || [])]);
-    setWatched([...(user?.watchedMovies || []), ...(user?.watchedTVShows || [])]);
-    setWantToWatch([...(user?.watchLaterMovies || []), ...(user?.watchLaterTVShows || [])]);
+    const user: UserModel | null = await getUserDoc();
+
+    setFavorites([
+      ...(user?.favoriteList?.movie || []),
+      ...(user?.favoriteList?.tv || []),
+    ]);
+    setWatched([
+      ...(user?.watchedList?.movie || []),
+      ...(user?.watchedList?.tv || []),
+    ]);
+    setWantToWatch([
+      ...(user?.watchLaterList?.movie || []),
+      ...(user?.watchLaterList?.tv || []),
+    ]);
   }, [userId]);
 
   useEffect(() => {
     fetchLists();
   }, [fetchLists]);
 
-  // Handle remove action
   const handleRemove = async (listKey: ListKey, item: any) => {
     if (!userId) return;
-    const type = item.title ? "movie" : "tv"; // Determine if item is movie or TV
-    await removeItemFromList(item.id, listKey, type);
+    const type: "movie" | "tv" = item.title ? "movie" : "tv";
+    await removeItemFromList(item.id.toString(), listKey, type);
     fetchLists();
   };
 
-  // Render each card
   const renderCard = (item: any, listKey: ListKey) => {
     const isMovie = !!item.title;
     const detailPath = isMovie ? "/movieDetails" : "/tvDetails";

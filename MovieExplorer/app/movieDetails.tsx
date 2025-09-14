@@ -10,8 +10,9 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { ThemeContext } from "./theme-context";
+import { ThemeContext } from "../contexts/theme-context";
 import { getUserDoc, addItemToList, removeItemFromList } from "../services/userService";
+import { UserModel } from "../models/User";
 
 const API_KEY = "0e6afe4a2d64477dd43060979e71b616";
 
@@ -29,7 +30,6 @@ export default function MovieDetailScreen() {
     watchLater: false,
   });
 
-  // Fetch movie details + cast
   const fetchMovieDetails = useCallback(async () => {
     try {
       const res = await fetch(
@@ -44,23 +44,13 @@ export default function MovieDetailScreen() {
       const creditsData = await creditsRes.json();
       setCast(creditsData.cast?.slice(0, 10) || []);
 
-      // Fetch current user lists from Firestore
-      const user = await getUserDoc();
-      const isFavorite =
-        (user?.favoriteMovies || []).some((m: any) => m.id === data.id) ||
-        (user?.favoriteTVShows || []).some((m: any) => m.id === data.id);
-      const isWatched =
-        (user?.watchedMovies || []).some((m: any) => m.id === data.id) ||
-        (user?.watchedTVShows || []).some((m: any) => m.id === data.id);
-      const isWatchLater =
-        (user?.watchLaterMovies || []).some((m: any) => m.id === data.id) ||
-        (user?.watchLaterTVShows || []).some((m: any) => m.id === data.id);
+      // Fetch user lists from Firestore
+      const user: UserModel | null = await getUserDoc();
+      const isFavorite = user?.favoriteList?.movie?.includes(data.id.toString()) ?? false;
+      const isWatched = user?.watchedList?.movie?.includes(data.id.toString()) ?? false;
+      const isWatchLater = user?.watchLaterList?.movie?.includes(data.id.toString()) ?? false;
 
-      setStatus({
-        favorite: isFavorite,
-        watched: isWatched,
-        watchLater: isWatchLater,
-      });
+      setStatus({ favorite: isFavorite, watched: isWatched, watchLater: isWatchLater });
     } catch (error) {
       console.error("Error fetching movie details:", error);
     } finally {
@@ -73,19 +63,19 @@ export default function MovieDetailScreen() {
   }, [fetchMovieDetails]);
 
   const updateLists = async (movie: any, updates: Record<ListKey, boolean>) => {
-    const type = "movie"; // can extend for TV
+    const type: "movie" = "movie"; // currently only handling movies
     const promises: Promise<void>[] = [];
 
     for (const key of ["favorite", "watched", "watchLater"] as ListKey[]) {
       const shouldAdd = updates[key];
       if (shouldAdd) {
         promises.push(addItemToList(
-          { id: movie.id, title: movie.title, poster_path: movie.poster_path },
+          movie.id.toString(),
           key,
           type
         ));
       } else {
-        promises.push(removeItemFromList(movie.id, key, type));
+        promises.push(removeItemFromList(movie.id.toString(), key, type));
       }
     }
 
@@ -95,7 +85,6 @@ export default function MovieDetailScreen() {
   const toggleList = async (key: ListKey) => {
     if (!movie) return;
 
-    // Compute updated status with rules
     let updated = { ...status, [key]: !status[key] };
 
     if (key === "favorite" && updated.favorite) {
@@ -113,9 +102,7 @@ export default function MovieDetailScreen() {
     }
 
     try {
-      // Sync all updates to Firestore
       await updateLists(movie, updated);
-      // Only update UI after Firestore succeeds
       setStatus(updated);
     } catch (err) {
       console.error("Failed to update lists:", err);

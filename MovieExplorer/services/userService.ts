@@ -1,60 +1,89 @@
-import { doc, getDoc, setDoc, arrayUnion } from "firebase/firestore";
-import { db, auth, storage } from "../firebase/firebaseConfig";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { arrayUnion } from "firebase/firestore";
+import { db, auth } from "../firebase/firebaseConfig";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { UserModel } from "../models/User";
 
-export const getUserDoc = async () => {
+// Get the current user's document as UserModel
+export const getUserDoc = async (): Promise<UserModel | null> => {
   const uid = auth.currentUser?.uid;
   if (!uid) return null;
 
   const docRef = doc(db, "users", uid);
   const docSnap = await getDoc(docRef);
-  return docSnap.exists() ? docSnap.data() : null;
+  return docSnap.exists() ? (docSnap.data() as UserModel) : null;
 };
 
-const getListName = (key: "favorite" | "watched" | "watchLater", type: "movie" | "tv") => {
+// Helper to get the right list key
+const getListKey = (key: "favorite" | "watched" | "watchLater"): keyof UserModel => {
   switch (key) {
     case "favorite":
-      return type === "movie" ? "favoriteMovies" : "favoriteTVShows";
+      return "favoriteList";
     case "watched":
-      return type === "movie" ? "watchedMovies" : "watchedTVShows";
+      return "watchedList";
     case "watchLater":
-      return type === "movie" ? "watchLaterMovies" : "watchLaterTVShows";
+      return "watchLaterList";
   }
 };
 
-// Add item safely
-export const addItemToList = async (item: any, key: "favorite" | "watched" | "watchLater", type: "movie" | "tv") => {
+// Add an item to a list safely
+export const addItemToList = async (
+  itemId: string,
+  key: "favorite" | "watched" | "watchLater",
+  type: "movie" | "tv"
+) => {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
 
-  const listName = getListName(key, type);
   const docRef = doc(db, "users", uid);
-  await setDoc(docRef, { [listName]: arrayUnion(item) }, { merge: true });
+  const user = await getUserDoc();
+  if (!user) return;
+
+  const listKey = getListKey(key);
+
+  // Type guard to ensure we're working with the correct structure
+  const currentList = user[listKey] as { movie: string[]; tv: string[] } | undefined;
+
+  const updatedList = {
+    movie: currentList?.movie ?? [],
+    tv: currentList?.tv ?? [],
+  };
+
+  if (!updatedList[type].includes(itemId)) {
+    updatedList[type].push(itemId);
+  }
+
+  await setDoc(docRef, { [listKey]: updatedList }, { merge: true });
+
 };
 
-// Remove item safely
-export const removeItemFromList = async (itemId: number | string, key: "favorite" | "watched" | "watchLater", type: "movie" | "tv") => {
+// Remove an item from a list safely
+export const removeItemFromList = async (
+  itemId: string,
+  key: "favorite" | "watched" | "watchLater",
+  type: "movie" | "tv"
+) => {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
 
-  const listName = getListName(key, type);
   const docRef = doc(db, "users", uid);
+  const user = await getUserDoc();
+  if (!user) return;
 
-  const userData = await getUserDoc();
-  const list = userData?.[listName] || [];
-  const updatedList = list.filter((m: any) => m.id !== itemId);
+  const listKey = getListKey(key);
+  const currentList = user[listKey] as { movie: string[]; tv: string[] } | undefined;
 
-  await setDoc(docRef, { [listName]: updatedList }, { merge: true });
+  const updatedList = {
+    movie: currentList?.movie.filter((id) => id !== itemId) ?? [],
+    tv: currentList?.tv.filter((id) => id !== itemId) ?? [],
+  };
+
+  await setDoc(docRef, { [listKey]: updatedList }, { merge: true });
+
 };
 
-export const updateUserSettings = async (settings: {
-  username?: string;
-  email?: string;
-  password?: string;
-  notifications?: boolean;
-  profilePic?: string;
-  darkMode?: boolean;
-}) => {
+// Update user settings
+export const updateUserSettings = async (settings: Partial<UserModel>) => {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
 
@@ -62,29 +91,25 @@ export const updateUserSettings = async (settings: {
   await setDoc(docRef, settings, { merge: true });
 };
 
+// Upload profile picture
 export const uploadProfilePicture = async (uri: string): Promise<string | null> => {
+  if (!auth.currentUser) return null;
   try {
-    if (!auth.currentUser) return null;
-
-    // Fetch local file and convert to blob
     const response = await fetch(uri);
     const blob = await response.blob();
 
-    // Extract file extension from URI
-    const uriParts = uri.split(".");
-    const extension = uriParts[uriParts.length - 1]; // jpg, png, etc.
-
-    // Use UID + extension as storage filename
-    const storageRef = ref(storage, `profilePics/${auth.currentUser.uid}.${extension}`);
-
-    // Upload file
+    const storage = getStorage();
+    const storageRef = ref(storage, `profilePics/${auth.currentUser.uid}`);
     await uploadBytes(storageRef, blob);
 
-    // Get download URL
-    const downloadURL = await getDownloadURL(storageRef);
-    return downloadURL;
+    return await getDownloadURL(storageRef);
   } catch (err) {
-    console.error("Failed to upload profile picture:", err);
+    console.error("Upload failed:", err);
     return null;
   }
+};
+
+export const saveUserPushToken = async (uid: string, token: string) => {
+  const userRef = doc(db, 'users', uid);
+  await updateDoc(userRef, { pushToken: token });
 };

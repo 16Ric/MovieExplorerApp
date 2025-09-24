@@ -6,6 +6,8 @@ import { auth } from "../firebase/firebaseConfig";
 import { getUserDoc, removeItemFromList } from "../services/userService";
 import { UserModel } from "../models/User";
 
+const API_KEY = "0e6afe4a2d64477dd43060979e71b616";
+
 type ListKey = "favorite" | "watched" | "watchLater";
 
 export default function MyListScreen() {
@@ -16,23 +18,41 @@ export default function MyListScreen() {
   const [wantToWatch, setWantToWatch] = useState<any[]>([]);
   const userId = auth.currentUser?.uid;
 
+  // Fetch full TMDB data for each ID
+  const fetchItems = async (ids: string[], type: "movie" | "tv") => {
+    if (!ids || ids.length === 0) return [];
+    try {
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          const res = await fetch(
+            `https://api.themoviedb.org/3/${type}/${id}?api_key=${API_KEY}&language=en-US`
+          );
+          return res.json();
+        })
+      );
+      return results;
+    } catch (err) {
+      console.error(`Failed to fetch ${type} items:`, err);
+      return [];
+    }
+  };
+
   const fetchLists = useCallback(async () => {
     if (!userId) return;
 
     const user: UserModel | null = await getUserDoc();
 
-    setFavorites([
-      ...(user?.favoriteList?.movie || []),
-      ...(user?.favoriteList?.tv || []),
-    ]);
-    setWatched([
-      ...(user?.watchedList?.movie || []),
-      ...(user?.watchedList?.tv || []),
-    ]);
-    setWantToWatch([
-      ...(user?.watchLaterList?.movie || []),
-      ...(user?.watchLaterList?.tv || []),
-    ]);
+    const favMovies = await fetchItems(user?.favoriteList?.movie || [], "movie");
+    const favTV = await fetchItems(user?.favoriteList?.tv || [], "tv");
+    setFavorites([...favMovies, ...favTV]);
+
+    const watchedMovies = await fetchItems(user?.watchedList?.movie || [], "movie");
+    const watchedTV = await fetchItems(user?.watchedList?.tv || [], "tv");
+    setWatched([...watchedMovies, ...watchedTV]);
+
+    const watchLaterMovies = await fetchItems(user?.watchLaterList?.movie || [], "movie");
+    const watchLaterTV = await fetchItems(user?.watchLaterList?.tv || [], "tv");
+    setWantToWatch([...watchLaterMovies, ...watchLaterTV]);
   }, [userId]);
 
   useEffect(() => {
@@ -49,20 +69,25 @@ export default function MyListScreen() {
   const renderCard = (item: any, listKey: ListKey) => {
     const isMovie = !!item.title;
     const detailPath = isMovie ? "/movieDetails" : "/tvDetails";
+    const itemId = item.id ?? "unknown";
+    const itemTitle = item.title || item.name || "Untitled";
+    const posterUrl = item.poster_path
+      ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+      : "https://via.placeholder.com/140x200.png?text=No+Image";
 
     return (
       <View style={[styles.card, { backgroundColor: theme.card }]}>
-        <TouchableOpacity onPress={() => router.push({ pathname: detailPath, params: { id: item.id } })}>
+        <TouchableOpacity
+          onPress={() =>
+            router.push({ pathname: detailPath, params: { id: itemId } })
+          }
+        >
           <Image
-            source={{
-              uri: item.poster_path
-                ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-                : "https://via.placeholder.com/140x200.png?text=No+Image",
-            }}
+            source={{ uri: posterUrl }}
             style={styles.poster}
           />
           <Text style={[styles.movieTitle, { color: theme.text }]} numberOfLines={1}>
-            {item.title || item.name}
+            {itemTitle}
           </Text>
         </TouchableOpacity>
 
@@ -94,7 +119,7 @@ export default function MyListScreen() {
               data={section.data}
               horizontal
               showsHorizontalScrollIndicator={false}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={(item, index) => (item.id ? item.id.toString() : index.toString())}
               renderItem={({ item }) => renderCard(item, section.key)}
               contentContainerStyle={{ paddingHorizontal: 10 }}
             />

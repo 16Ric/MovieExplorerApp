@@ -4,8 +4,6 @@ import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { auth } from "../firebase/firebaseConfig";
 import { getUserDoc, saveUserPushToken } from "../services/userService";
 import { UserModel } from "../models/User";
-import { registerForPushNotificationsAsync } from "../services/notificationService";
-import { requestWebPushToken, listenForegroundMessages } from "../firebase/firebase-messaging";
 
 interface AuthContextType {
   user: UserModel | null;
@@ -75,29 +73,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return unsubscribe;
   }, []);
-
-  // -------------------
-  // Unified Push Registration (Web + Mobile)
-  // -------------------
-  const registerPushToken = async () => {
-    if (!firebaseUser) return;
-
-    if (Platform.OS === "web") {
-      await requestWebPushToken(); // already saves to Firestore internally
-      listenForegroundMessages((payload) => {
-        alert(`New notification: ${payload.notification?.title}`);
-      });
-    } else {
-      const token = await registerForPushNotificationsAsync();
-      if (token) {
-        await saveUserPushToken(firebaseUser.uid, token);
-      }
-    }
-  };
-
-  useEffect(() => {
-    registerPushToken();
-  }, [firebaseUser]);
 
   const value: AuthContextType = {
     user,

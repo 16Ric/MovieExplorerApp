@@ -7,7 +7,6 @@ import { ThemeProvider, ThemeContext } from "../contexts/theme-context";
 import { AuthProvider, AuthContext } from "../contexts/auth-context";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-
 const { width } = Dimensions.get("window");
 const DRAWER_WIDTH = width * 0.7;
 

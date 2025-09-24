@@ -19,7 +19,6 @@ import { auth } from "../firebase/firebaseConfig";
 import { useRouter } from "expo-router";
 import { AuthContext } from "../contexts/auth-context";
 import { UserModel } from "../models/User";
-import { requestWebPushToken, registerForPushNotificationsAsync, sendPushNotification } from "../services/notificationService";
 
 export default function SettingsScreen() {
   const { theme, darkMode, toggleTheme } = useContext(ThemeContext);
@@ -139,26 +138,26 @@ export default function SettingsScreen() {
     await updateUserSettings({ notifications: value });
     await refreshUserData();
 
-    if (value) {
-      let token: string | null = null;
+    // if (value) {
+    //   let token: string | null = null;
 
-      if (Platform.OS === "web") {
-        token = await requestWebPushToken();
-      } else {
-        token = await registerForPushNotificationsAsync();
-      }
+    //   if (Platform.OS === "web") {
+    //     token = await requestWebPushToken();
+    //   } else {
+    //     token = await registerForPushNotificationsAsync();
+    //   }
 
-      if (auth.currentUser && token) {
-        // Save token to Firestore under the user profile
-        await saveUserPushToken(auth.currentUser.uid, token);
+    //   if (auth.currentUser && token) {
+    //     // Save token to Firestore under the user profile
+    //     await saveUserPushToken(auth.currentUser.uid, token);
 
-        await sendPushNotification(token, {
-          title: "✅ Notifications Enabled",
-          body: "You’ll now receive updates on trending movies & reminders!",
-          screen: "Trending", // optional deep link
-        });
-      }
-    }
+    //     await sendPushNotification(token, {
+    //       title: "✅ Notifications Enabled",
+    //       body: "You’ll now receive updates on trending movies & reminders!",
+    //       screen: "Trending", // optional deep link
+    //     });
+    //   }
+    // }
   } catch (err) {
     console.error("Failed to update notifications:", err);
   }

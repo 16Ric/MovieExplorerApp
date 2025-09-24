@@ -10,8 +10,9 @@ A cross-platform Movie Explorer app built with **React Native (Expo)** that lets
 
 ---
 
-## 📸 Demo  
- 
+## Demo
+
+[![Watch the demo](https://img.youtube.com/vi/ilUaBvtoNgk/0.jpg)](https://youtu.be/ilUaBvtoNgk)
 
 ---
 
@@ -68,6 +69,8 @@ npm run start
 
 # 4. Run on web
 npm run web
+or
+npx expo start --web
 
 # 5. Run on device (Expo Go)
 npm run android

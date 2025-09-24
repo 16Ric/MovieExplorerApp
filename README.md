@@ -57,21 +57,21 @@ MovieExplorer/
 ---
 
 ## Quick Start
-# 1. Clone repo
+### 1. Clone repo
 git clone https://github.com/16Ric/MovieExplorerApp
 
-# 2. Install dependencies
+### 2. Install dependencies
 npm install
 
-# 3. Start development
+### 3. Start development
 npm run start
 
-# 4. Run on web
+### 4. Run on web
 npm run web
 or
 npx expo start --web
 
-# 5. Run on device (Expo Go)
+### 5. Run on device (Expo Go)
 npm run android
 npm run ios
 

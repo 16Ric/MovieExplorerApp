@@ -12,7 +12,7 @@ A cross-platform Movie Explorer app built with **React Native (Expo)** that lets
 
 ## Demo
 
-[![Watch the demo](https://img.youtube.com/vi/ilUaBvtoNgk/0.jpg)](https://youtu.be/ilUaBvtoNgk)
+![MovieExplorerApp Demo](https://private-user-images.githubusercontent.com/111259015/493191909-fad52b63-cf52-4e3e-bf8c-d9ccb2a90202.gif)
 
 ---
 
